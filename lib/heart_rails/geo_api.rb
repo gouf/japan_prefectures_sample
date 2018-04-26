@@ -7,26 +7,21 @@ module HeartRails
   class GeoAPI
     def initialize
       base_url = 'http://geoapi.heartrails.com'
-      @conn = Faraday.new(url: base_url)
+      @faraday = Faraday.new(url: base_url)
     end
 
-    def prefectures(type = :json)
-      fail unless [:json, :xml].include?(type)
+    def prefectures(request_type = :json)
       response =
-        @conn.get("/api/#{type}") do |req|
+        @faraday.get("/api/#{request_type}") do |req|
           req.params['method'] = 'getPrefectures'
         end
 
-      case type
-      when :json
-        JSON.parse(response.body)['response']['prefecture']
-      when :xml
-        Nokogiri::XML(response.body).css('prefecture')
-      end
+      {
+        json: proc { |body| JSON.parse(body)['response']['prefecture'] },
+        xml:  proc { |body| Nokogiri::XML(body).css('prefecture') }
+      }[request_type].call(response.body)
+    rescue NoMethodError => _e
+      'Cannot get a data for that request type. available types is: json or xml'
     end
-
-    # def prefectures
-    #   JSON.parse(prefectures.body)['response']['prefecture']
-    # end
   end
 end
